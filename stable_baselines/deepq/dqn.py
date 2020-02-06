@@ -13,6 +13,12 @@ from stable_baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplay
 from stable_baselines.deepq.policies import DQNPolicy
 from stable_baselines.a2c.utils import total_episode_reward_logger
 
+import functools
+from stable_baselines.her.utils import HERGoalEnvWrapper
+from stable_baselines.her.replay_buffer import HindsightExperienceReplayWrapper, KEY_TO_GOAL_STRATEGY
+from stable_baselines.common.math_util import unscale_action, scale_action
+from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
+import statistics
 
 class DQN(OffPolicyRLModel):
     """
@@ -55,6 +61,26 @@ class DQN(OffPolicyRLModel):
     :param n_cpu_tf_sess: (int) The number of threads for TensorFlow operations
         If None, the number of cpu of the current machine will be used.
     """
+    def _create_replay_wrapper(self, env):
+        """
+        Wrap the environment in a HERGoalEnvWrapper
+        if needed and create the replay buffer wrapper.
+        """
+        if not isinstance(env, HERGoalEnvWrapper):
+            env = HERGoalEnvWrapper(env)
+
+        self.env = env
+        self.n_sampled_goal = 4
+        self.goal_selection_strategy = 'future'
+        # NOTE: we cannot do that check directly with VecEnv
+        # maybe we can try calling `compute_reward()` ?
+        # assert isinstance(self.env, gym.GoalEnv), "HER only supports gym.GoalEnv"
+
+        self.replay_wrapper = functools.partial(HindsightExperienceReplayWrapper,
+                                                n_sampled_goal=self.n_sampled_goal,
+                                                goal_selection_strategy=self.goal_selection_strategy,
+                                                wrapped_env=self.env)
+
     def __init__(self, policy, env, gamma=0.99, learning_rate=5e-4, buffer_size=50000, exploration_fraction=0.1,
                  exploration_final_eps=0.02, exploration_initial_eps=1.0, train_freq=1, batch_size=32, double_q=True,
                  learning_starts=1000, target_network_update_freq=500, prioritized_replay=False,
@@ -66,6 +92,11 @@ class DQN(OffPolicyRLModel):
         # TODO: replay_buffer refactoring
         super(DQN, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DQNPolicy,
                                   requires_vec_env=False, policy_kwargs=policy_kwargs, seed=seed, n_cpu_tf_sess=n_cpu_tf_sess)
+
+        # for HER algorithm
+        if self.env is not None and 'Fetch' in self.env.__str__():
+            self._create_replay_wrapper(self.env)
+            self.observation_space = self.env.observation_space
 
         self.param_noise = param_noise
         self.learning_starts = learning_starts
@@ -110,6 +141,9 @@ class DQN(OffPolicyRLModel):
     def setup_model(self):
 
         with SetVerbosity(self.verbose):
+            # decision net: produce categorical distribution (2 choices)
+            self.action_space = gym.spaces.discrete.Discrete(2)
+
             assert not isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DQN cannot output a gym.spaces.Box action space."
 
@@ -154,6 +188,11 @@ class DQN(OffPolicyRLModel):
               reset_num_timesteps=True, replay_wrapper=None):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+        for i, m in enumerate(self.sub_models):
+            m.learning_rate = get_schedule_fn(m.learning_rate)
+            if len(self.replay_wrappers) != 0:
+                m.replay_buffer = self.replay_wrappers[i](m.replay_buffer)
+            m._setup_learn()
 
         with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
                 as writer:
@@ -186,8 +225,12 @@ class DQN(OffPolicyRLModel):
             episode_successes = []
             obs = self.env.reset()
             reset = True
+            macro_count = 0
+            macro_len = 5
+            macro_choices = []
+            n_updates = 0
 
-            for _ in range(total_timesteps):
+            for step in range(total_timesteps):
                 if callback is not None:
                     # Only stop training if return value is False, not when it is None. This is for backwards
                     # compatibility with callbacks that have no return statement.
@@ -211,12 +254,43 @@ class DQN(OffPolicyRLModel):
                     kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                     kwargs['update_param_noise_scale'] = True
                 with self.sess.as_default():
-                    action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-                env_action = action
+                    # TODO: change macro_count % ?? later.
+                    if reset or macro_count % macro_len == 0:
+                        macro_action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
+                        # macro_action = 1
+                        macro_choices.append(macro_action)
+                        macro_obs = obs
+                        reward_in_one_macro = 0
+                    macro_count += 1
+
+                # use sub_model to decide action
+                # env_action = self.sub_models[macro_action]
+                current_sub = self.sub_models[macro_action]
+                if self.num_timesteps < self.learning_starts or np.random.rand() < current_sub.random_exploration:
+                    # actions sampled from action space are from range specific to the environment
+                    # but algorithm operates on tanh-squashed actions therefore simple scaling is used
+                    unscaled_action = self.env.action_space.sample()
+                    action = scale_action(self.env.action_space, unscaled_action)
+                else:
+                    action = current_sub.policy_tf.step(obs[None], deterministic=False).flatten()
+                    # Add noise to the action (improve exploration,
+                    # not needed in general)
+                    if current_sub.action_noise is not None:
+                        action = np.clip(action + current_sub.action_noise(), -1, 1)
+                    # inferred actions need to be transformed to environment action_space before stepping
+                    unscaled_action = unscale_action(self.env.action_space, action)
+                assert action.shape == self.env.action_space.shape
+
                 reset = False
-                new_obs, rew, done, info = self.env.step(env_action)
+                new_obs, rew, done, info = self.env.step(unscaled_action)
+                episode_rewards[-1] += rew
+                rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
+                reward_in_one_macro += rew
                 # Store transition in the replay buffer.
-                self.replay_buffer.add(obs, action, rew, new_obs, float(done))
+                if macro_count % macro_len == 0 or done:
+                    self.replay_buffer.add(macro_obs, macro_action, reward_in_one_macro, new_obs, float(done))
+                for m in self.sub_models:
+                    m.replay_buffer.add(obs, action, rew, new_obs, float(done))
                 obs = new_obs
 
                 if writer is not None:
@@ -225,7 +299,7 @@ class DQN(OffPolicyRLModel):
                     total_episode_reward_logger(self.episode_reward, ep_rew, ep_done, writer,
                                                 self.num_timesteps)
 
-                episode_rewards[-1] += rew
+                # print("step: %d, done: %d" % (self.num_timesteps, done))
                 if done:
                     maybe_is_success = info.get('is_success')
                     if maybe_is_success is not None:
@@ -234,6 +308,10 @@ class DQN(OffPolicyRLModel):
                         obs = self.env.reset()
                     episode_rewards.append(0.0)
                     reset = True
+                    macro_action = None
+                    macro_count = 0
+                    prev_macro_choices = macro_choices
+                    macro_choices = []
 
                 # Do not train if the warmup phase is not over
                 # or if there are not enough samples in the replay buffer
@@ -281,21 +359,47 @@ class DQN(OffPolicyRLModel):
                     # Update target network periodically.
                     self.update_target(sess=self.sess)
 
+
+                if step % self.sub_models[0].train_freq == 0:
+                    mb_infos_vals = []
+                    for m in self.sub_models:
+                        # Update policy, critics and target networks
+                        for grad_step in range(m.gradient_steps):
+                            # Break if the warmup phase is not over
+                            # or if there are not enough samples in the replay buffer
+                            if not m.replay_buffer.can_sample(m.batch_size) \
+                               or self.num_timesteps < m.learning_starts:
+                                break
+                            n_updates += 1
+                            # Compute current learning_rate
+                            frac = 1.0 - step / total_timesteps
+                            current_lr = m.learning_rate(frac)
+                            # Update policy and critics (q functions)
+                            mb_infos_vals.append(m._train_step(step, writer, current_lr))
+                            # Update target network
+                            if (step + grad_step) % m.target_update_interval == 0:
+                                # Update target network
+                                m.sess.run(m.target_update_op)
+
                 if len(episode_rewards[-101:-1]) == 0:
                     mean_100ep_reward = -np.inf
                 else:
                     mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
 
                 num_episodes = len(episode_rewards)
+                # print(done, log_interval, len(episode_rewards), self.num_timesteps)
                 if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
                     logger.record_tabular("steps", self.num_timesteps)
+                    logger.record_tabular("macro choices", statistics.mean(prev_macro_choices))
                     logger.record_tabular("episodes", num_episodes)
                     if len(episode_successes) > 0:
                         logger.logkv("success rate", np.mean(episode_successes[-100:]))
                     logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                     logger.record_tabular("% time spent exploring",
                                           int(100 * self.exploration.value(self.num_timesteps)))
+                    logger.logkv("n_updates_of_sub", n_updates)
                     logger.dump_tabular()
+                    print("macro choices", prev_macro_choices)
 
                 self.num_timesteps += 1
 

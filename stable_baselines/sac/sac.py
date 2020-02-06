@@ -14,7 +14,6 @@ from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 from stable_baselines.sac.policies import SACPolicy
 from stable_baselines import logger
 
-
 def get_vars(scope):
     """
     Alias for get_trainable_vars
@@ -22,7 +21,8 @@ def get_vars(scope):
     :param scope: (str)
     :return: [tf Variable]
     """
-    return tf_util.get_trainable_vars(scope)
+    prefix = tf.get_variable_scope().name.split('/')[0] + '/'
+    return tf_util.get_trainable_vars(prefix + scope)
 
 
 class SAC(OffPolicyRLModel):
@@ -143,7 +143,8 @@ class SAC(OffPolicyRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
-            self.graph = tf.Graph()
+            # self.graph = tf.Graph()
+            self.graph = tf.compat.v1.get_default_graph()
             with self.graph.as_default():
                 self.set_random_seed(self.seed)
                 self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)
@@ -176,6 +177,7 @@ class SAC(OffPolicyRLModel):
                     # policy_out corresponds to stochastic actions, used for training
                     # logp_pi is the log probability of actions taken by the policy
                     self.deterministic_action, policy_out, logp_pi = self.policy_tf.make_actor(self.processed_obs_ph)
+                    # print("Created policy:", tf.trainable_variables(), end='\n\n\n')
                     # Monitor the entropy of the policy,
                     # this is not used for training
                     self.entropy = tf.reduce_mean(self.policy_tf.entropy)
@@ -266,6 +268,7 @@ class SAC(OffPolicyRLModel):
                     # (has to be separate from value train op, because min_qf_pi appears in policy_loss)
                     policy_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
                     policy_train_op = policy_optimizer.minimize(policy_loss, var_list=get_vars('model/pi'))
+                    # print("Optimized policy parameters:", get_vars('model/pi'), end='\n\n\n')
 
                     # Value train op
                     value_optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_ph)
