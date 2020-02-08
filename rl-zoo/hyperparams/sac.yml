@@ -82,6 +82,16 @@ HalfCheetah-v3:
   gradient_steps: 1
   learning_starts: 10000
 
+Hopper-v3:
+  n_timesteps: !!float 1e6
+  policy: 'CustomSACPolicy'
+  learning_rate: !!float 3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 'auto'
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
 Walker2d-v3:
   n_timesteps: !!float 1e6
   policy: 'CustomSACPolicy'

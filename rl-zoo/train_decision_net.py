@@ -35,7 +35,6 @@ import sys
 import tensorflow as tf
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, nargs='+', default=["CartPole-v1"], help='environment ID(s)')
@@ -62,10 +61,20 @@ if __name__ == '__main__':
                         type=int)
     parser.add_argument('--gym-packages', type=str, nargs='+', default=[], help='Additional external Gym environemnt package modules to import (e.g. gym_minigrid)')
 
+    # subpolicy hypers
     parser.add_argument('--policy-cost-coef', type=float, default=2.9e-4)
     parser.add_argument("--sub-policy-costs", nargs="*", type=float, default=[1, 20])
+    parser.add_argument("--sub-hidden-sizes", nargs="*", type=int, default=[8, 64])
+
+    # need to record frames for the last few episodes?
+    parser.add_argument('--record-frames', action='store_true')
 
     args = parser.parse_args()
+
+    if args.record_frames:
+        from pyvirtualdisplay import Display
+        display = Display(visible=0, size=(1400, 900))
+        display.start()
 
     # Going through custom gym packages to let them register in the global registory
     for env_module in args.gym_packages:
@@ -367,10 +376,7 @@ if __name__ == '__main__':
                             sub_hyperparams[key] = constfn(float(sub_hyperparams[key]))
                         else:
                             raise ValueError('Invalid value for {}: {}'.format(key, sub_hyperparams[key]))
-                    if i == 0:
-                      sub_hyperparams['policy_kwargs'] = dict(layers=[8, 8])
-                    if i == 1:
-                      sub_hyperparams['policy_kwargs'] = dict(layers=[64, 64])
+                    sub_hyperparams['policy_kwargs'] = dict(layers=[args.sub_hidden_sizes[i]] * 2)  # 2 layers
 
                     # Delete keys so the dict can be pass to the model constructor
                     if 'n_envs' in sub_hyperparams.keys():
@@ -391,18 +397,18 @@ if __name__ == '__main__':
                         sub_model = sub_model.model
                     sub_models.append(sub_model)
 
-        inner_model.sub_models = sub_models
-        inner_model.replay_wrappers = replay_wrappers
-        inner_model.args = args
-        # with model.model.graph.as_default():
-        #     tf_util.initialize(model.sess)
-        model.learn(n_timesteps, **kwargs)
-
-        # Save trained model
+        # place to save trained model
         log_path = "{}/{}/".format(args.log_folder, args.algo)
         save_path = os.path.join(log_path, "{}_{}".format(env_id, get_latest_run_id(log_path, env_id) + 1))
         params_path = "{}/{}".format(save_path, env_id)
         os.makedirs(params_path, exist_ok=True)
+
+        # Train
+        inner_model.sub_models = sub_models
+        inner_model.replay_wrappers = replay_wrappers
+        inner_model.args = args
+        inner_model.save_folder = params_path
+        model.learn(n_timesteps, **kwargs)
 
         # Only save worker of rank 0 when using mpi
         if rank == 0:

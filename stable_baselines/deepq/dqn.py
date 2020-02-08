@@ -3,6 +3,7 @@ from functools import partial
 import tensorflow as tf
 import numpy as np
 import gym
+import os
 
 from stable_baselines import logger
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
@@ -19,6 +20,8 @@ from stable_baselines.her.replay_buffer import HindsightExperienceReplayWrapper,
 from stable_baselines.common.math_util import unscale_action, scale_action
 from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 import statistics
+from skimage.transform import resize
+from skimage.util import img_as_ubyte
 
 class DQN(OffPolicyRLModel):
     """
@@ -229,6 +232,10 @@ class DQN(OffPolicyRLModel):
             macro_len = 5
             macro_choices = []
             n_updates = 0
+            start_record_frames = False
+            n_episodes_recorded = 0
+            rgb_arrays = []
+            reward_per_step = []
 
             for step in range(total_timesteps):
                 if callback is not None:
@@ -236,6 +243,13 @@ class DQN(OffPolicyRLModel):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
+
+                if start_record_frames:
+                    rgb = self.env.render('rgb_array')
+                    rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
+                    rgb_arrays.append(rgb)
+
+
                 # Take action and update exploration to the newest value
                 kwargs = {}
                 if not self.param_noise:
@@ -258,10 +272,10 @@ class DQN(OffPolicyRLModel):
                     if reset or macro_count % macro_len == 0:
                         macro_action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
                         # macro_action = 1
-                        macro_choices.append(macro_action)
                         macro_obs = obs
                         reward_in_one_macro = 0
                     macro_count += 1
+                    macro_choices.append(macro_action)
 
                 # use sub_model to decide action
                 # env_action = self.sub_models[macro_action]
@@ -284,6 +298,7 @@ class DQN(OffPolicyRLModel):
                 reset = False
                 new_obs, rew, done, info = self.env.step(unscaled_action)
                 episode_rewards[-1] += rew
+                reward_per_step.append(rew)
                 rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
                 reward_in_one_macro += rew
                 # Store transition in the replay buffer.
@@ -312,6 +327,36 @@ class DQN(OffPolicyRLModel):
                     macro_count = 0
                     prev_macro_choices = macro_choices
                     macro_choices = []
+
+                    # save recorded frames, rewards, macro decisions
+                    if start_record_frames:
+                        current_save_folder = os.path.join(self.save_folder, 'step' + str(step))
+                        print("Save frames to folder: %s" % current_save_folder)
+                        os.makedirs(current_save_folder, exist_ok=True)
+                        statistic_file = os.path.join(current_save_folder, 'statistic_file.txt')
+                        rgb_arrays_file = os.path.join(current_save_folder, 'rgb_arrays.pickle')
+                        with open(statistic_file, 'w') as f:
+                            ep_ret = sum(reward_per_step)
+                            f.write('%d: %f' % (step, ep_ret) + '\n')
+                            d = {'macro_ac': prev_macro_choices, 'rews_without_cost': reward_per_step}
+                            needed_keys = ['macro_ac', 'rews_without_cost']
+                            for key in needed_keys:
+                                f.write(key + '\n')
+                                for v in d[key]:
+                                    f.write(str(v) + ' ')
+                                f.write('\n\n')
+                        rgb_arrays = np.array(rgb_arrays)
+                        rgb_arrays.dump(rgb_arrays_file)
+
+                        n_episodes_recorded += 1
+
+                    reward_per_step = []
+                    rgb_arrays = []
+
+                    if self.args.record_frames and step >= total_timesteps * 0.9 and n_episodes_recorded <= 9:
+                        start_record_frames = True
+                    else:
+                        start_record_frames = False
 
                 # Do not train if the warmup phase is not over
                 # or if there are not enough samples in the replay buffer
