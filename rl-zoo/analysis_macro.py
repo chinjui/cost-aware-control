@@ -31,8 +31,7 @@ with open(statistic_file, 'r') as f:
       macro_acts = line.split(' ')
       macro_acts_repeat = []
       for v in macro_acts:
-        for i in range(5):
-          macro_acts_repeat.append(v)
+        macro_acts_repeat.append(v)
     if i == 5:
       rewards = line.split(' ')
       try:
@@ -46,7 +45,7 @@ print(len(macro_acts_repeat), len(rewards))
 font = cv2.FONT_HERSHEY_SIMPLEX
 org = (25, 25)
 fontScale = 0.5
-color = (0, 255, 0)
+color = (255, 0, 0)
 thickness = 1
 
 out = cv2.VideoWriter('%s.mp4' % video_name, cv2.VideoWriter_fourcc(*'MP4V'), 15, rgbs[0].shape[0:2])

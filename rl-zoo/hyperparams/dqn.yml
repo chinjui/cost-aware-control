@@ -11,8 +11,8 @@ atari:
   prioritized_replay_alpha: 0.6
   prioritized_replay: True
 
-Hopper-v3:
-  n_timesteps: !!float 1900000
+Pendulum-v0:
+  n_timesteps: !!float 60000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -30,8 +30,35 @@ Walker2d-v3:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 
+InvertedPendulum-v2:
+  n_timesteps: !!float 1600000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+InvertedDoublePendulum-v2:
+  n_timesteps: !!float 1600000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
 HalfCheetah-v3:
-  n_timesteps: !!float 1900000
+  n_timesteps: !!float 1300000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+Humanoid-v3:
+  n_timesteps: !!float 10000000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -40,6 +67,24 @@ HalfCheetah-v3:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 
+Hopper-v3:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+Ant-v3:
+  n_timesteps: !!float 1900000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
 Swimmer-v3:
   n_timesteps: !!float 1900000
   policy: 'MlpPolicy'

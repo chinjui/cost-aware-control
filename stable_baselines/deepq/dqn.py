@@ -20,8 +20,6 @@ from stable_baselines.her.replay_buffer import HindsightExperienceReplayWrapper,
 from stable_baselines.common.math_util import unscale_action, scale_action
 from stable_baselines.ppo2.ppo2 import safe_mean, get_schedule_fn
 import statistics
-from skimage.transform import resize
-from skimage.util import img_as_ubyte
 
 class DQN(OffPolicyRLModel):
     """
@@ -134,6 +132,9 @@ class DQN(OffPolicyRLModel):
         self.params = None
         self.summary = None
 
+        self.macro_len = 5
+        self.macro_count = 0  # when macro_count % macro_len == 0, resample macro action
+
         if _init_setup_model:
             self.setup_model()
 
@@ -229,13 +230,9 @@ class DQN(OffPolicyRLModel):
             obs = self.env.reset()
             reset = True
             macro_count = 0
-            macro_len = 5
+            macro_len = self.macro_len
             macro_choices = []
             n_updates = 0
-            start_record_frames = False
-            n_episodes_recorded = 0
-            rgb_arrays = []
-            reward_per_step = []
 
             for step in range(total_timesteps):
                 if callback is not None:
@@ -243,12 +240,6 @@ class DQN(OffPolicyRLModel):
                     # compatibility with callbacks that have no return statement.
                     if callback(locals(), globals()) is False:
                         break
-
-                if start_record_frames:
-                    rgb = self.env.render('rgb_array')
-                    rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
-                    rgb_arrays.append(rgb)
-
 
                 # Take action and update exploration to the newest value
                 kwargs = {}
@@ -298,7 +289,6 @@ class DQN(OffPolicyRLModel):
                 reset = False
                 new_obs, rew, done, info = self.env.step(unscaled_action)
                 episode_rewards[-1] += rew
-                reward_per_step.append(rew)
                 rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
                 reward_in_one_macro += rew
                 # Store transition in the replay buffer.
@@ -328,35 +318,7 @@ class DQN(OffPolicyRLModel):
                     prev_macro_choices = macro_choices
                     macro_choices = []
 
-                    # save recorded frames, rewards, macro decisions
-                    if start_record_frames:
-                        current_save_folder = os.path.join(self.save_folder, 'step' + str(step))
-                        print("Save frames to folder: %s" % current_save_folder)
-                        os.makedirs(current_save_folder, exist_ok=True)
-                        statistic_file = os.path.join(current_save_folder, 'statistic_file.txt')
-                        rgb_arrays_file = os.path.join(current_save_folder, 'rgb_arrays.pickle')
-                        with open(statistic_file, 'w') as f:
-                            ep_ret = sum(reward_per_step)
-                            f.write('%d: %f' % (step, ep_ret) + '\n')
-                            d = {'macro_ac': prev_macro_choices, 'rews_without_cost': reward_per_step}
-                            needed_keys = ['macro_ac', 'rews_without_cost']
-                            for key in needed_keys:
-                                f.write(key + '\n')
-                                for v in d[key]:
-                                    f.write(str(v) + ' ')
-                                f.write('\n\n')
-                        rgb_arrays = np.array(rgb_arrays)
-                        rgb_arrays.dump(rgb_arrays_file)
 
-                        n_episodes_recorded += 1
-
-                    reward_per_step = []
-                    rgb_arrays = []
-
-                    if self.args.record_frames and step >= total_timesteps * 0.9 and n_episodes_recorded <= 9:
-                        start_record_frames = True
-                    else:
-                        start_record_frames = False
 
                 # Do not train if the warmup phase is not over
                 # or if there are not enough samples in the replay buffer
@@ -435,7 +397,7 @@ class DQN(OffPolicyRLModel):
                 # print(done, log_interval, len(episode_rewards), self.num_timesteps)
                 if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
                     logger.record_tabular("steps", self.num_timesteps)
-                    logger.record_tabular("macro choices", statistics.mean(prev_macro_choices))
+                    logger.record_tabular("macro choices", np.mean(prev_macro_choices))
                     logger.record_tabular("episodes", num_episodes)
                     if len(episode_successes) > 0:
                         logger.logkv("success rate", np.mean(episode_successes[-100:]))
@@ -456,12 +418,20 @@ class DQN(OffPolicyRLModel):
 
         observation = observation.reshape((-1,) + self.observation_space.shape)
         with self.sess.as_default():
-            actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
+            if self.macro_count % self.macro_len == 0:
+                macro_actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
+                self.macro_act = macro_actions[0]   # not supporting vectorized_env
+            self.macro_count += 1
 
-        if not vectorized_env:
-            actions = actions[0]
+        # Sample from sub_policy
+        current_sub = self.sub_models[self.macro_act]
+        action = current_sub.policy_tf.step(observation, deterministic=deterministic).flatten()
+        # inferred actions need to be transformed to environment action_space before stepping
+        unscaled_action = unscale_action(self.env.action_space, action)
 
-        return actions, None
+        unscaled_action = unscaled_action[0] # not supporting vectorized_env
+
+        return self.macro_act, unscaled_action, None
 
     def action_probability(self, observation, state=None, mask=None, actions=None, logp=False):
         observation = np.array(observation)

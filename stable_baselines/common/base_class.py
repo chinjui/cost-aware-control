@@ -115,8 +115,8 @@ class BaseRLModel(ABC):
         # sanity checking the environment
         assert self.observation_space == env.observation_space, \
             "Error: the environment passed must have at least the same observation space as the model was trained on."
-        assert self.action_space == env.action_space, \
-            "Error: the environment passed must have at least the same action space as the model was trained on."
+        # assert self.action_space == env.action_space, \
+        #     "Error: the environment passed must have at least the same action space as the model was trained on."
         if self._requires_vec_env:
             assert isinstance(env, VecEnv), \
                 "Error: the environment passed is not a vectorized environment, however {} requires it".format(

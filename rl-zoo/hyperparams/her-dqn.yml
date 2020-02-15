@@ -139,7 +139,7 @@ FetchPickAndPlace-v1:
 
 # SAC hyperparams
 FetchReach-v1:
-  n_timesteps: !!float 1000000
+  n_timesteps: !!float 100000
   policy: 'MlpPolicy'
   model_class: 'dqn'
   n_sampled_goal: 4

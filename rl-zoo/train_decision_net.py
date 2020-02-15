@@ -34,6 +34,8 @@ import utils
 import sys
 import tensorflow as tf
 from stable_baselines.common import tf_util, OffPolicyRLModel, SetVerbosity, TensorboardWriter
+from skimage.transform import resize
+from skimage.util import img_as_ubyte
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -60,21 +62,18 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', help='Verbose mode (0: no output, 1: INFO)', default=1,
                         type=int)
     parser.add_argument('--gym-packages', type=str, nargs='+', default=[], help='Additional external Gym environemnt package modules to import (e.g. gym_minigrid)')
+    parser.add_argument('--trained-agent-folder', help='Path to a pretrained agent to demo training results', default='', type=str)
 
     # subpolicy hypers
-    parser.add_argument('--policy-cost-coef', type=float, default=2.9e-4)
+    parser.add_argument('--policy-cost-coef', type=float, default=2.9e-2)
     parser.add_argument("--sub-policy-costs", nargs="*", type=float, default=[1, 20])
     parser.add_argument("--sub-hidden-sizes", nargs="*", type=int, default=[8, 64])
 
     # need to record frames for the last few episodes?
-    parser.add_argument('--record-frames', action='store_true')
+    parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=20)
+    parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=3000)
 
     args = parser.parse_args()
-
-    if args.record_frames:
-        from pyvirtualdisplay import Display
-        display = Display(visible=0, size=(1400, 900))
-        display.start()
 
     # Going through custom gym packages to let them register in the global registory
     for env_module in args.gym_packages:
@@ -197,7 +196,10 @@ if __name__ == '__main__':
 
         # obtain a class object from a wrapper name string in hyperparams
         # and delete the entry
-        env_wrapper = get_wrapper_class({'env_wrapper': 'utils.wrappers.DoneOnSuccessWrapper'})
+        if 'Fetch' in args.env[0]:
+            env_wrapper = get_wrapper_class({'env_wrapper': 'utils.wrappers.DoneOnSuccessWrapper'})
+        else:
+            env_wrapper = None
         if 'env_wrapper' in hyperparams.keys():
             del hyperparams['env_wrapper']
 
@@ -279,19 +281,21 @@ if __name__ == '__main__':
             if 'noise_std_final' in hyperparams:
                 del hyperparams['noise_std_final']
 
-        if os.path.isfile(args.trained_agent):
+        if args.trained_agent_folder != '':
             # Continue training
             print("Loading pretrained agent")
             # Policy should not be changed
             del hyperparams['policy']
 
-            model = ALGOS[args.algo].load(args.trained_agent, env=env,
+            trained_m_path = os.path.join(args.trained_agent_folder, '%s.zip' % env_id)
+            model = ALGOS[args.algo].load(trained_m_path, env=env,
                                           tensorboard_log=tensorboard_log, verbose=args.verbose, **hyperparams)
 
             exp_folder = args.trained_agent[:-4]
             if normalize:
                 print("Loading saved running average")
                 env.load_running_average(exp_folder)
+            print("Macro policy loaded!!!!!!")
 
         elif args.optimize_hyperparameters:
 
@@ -344,7 +348,7 @@ if __name__ == '__main__':
         with inner_model.graph.as_default():
             for i in range(n_sub_models):
                 with tf.variable_scope("subpolicy%d" % i) as scope:
-                    # Load hyperparameters from yaml file
+                    # Load hyperparameters for sub_policy from yaml file
                     if 'Fetch' in args.env[0]:
                         hyper_file = 'hyperparams/her.yml'
                         sub_algo = "her"
@@ -391,7 +395,15 @@ if __name__ == '__main__':
                     if 'model_class' in sub_hyperparams:
                         sub_hyperparams['model_class'] = ALGOS["sac"]
 
-                    sub_model = ALGOS[sub_algo](env=env, verbose=args.verbose, **sub_hyperparams)
+                    if args.trained_agent_folder == '':
+                        sub_model = ALGOS[sub_algo](env=env, verbose=args.verbose, **sub_hyperparams)
+                    else:
+                        del sub_hyperparams['policy']
+                        trained_m_path = os.path.join(args.trained_agent_folder, '%s_sub%d.zip' % (env_id, i))
+                        sub_model = ALGOS[sub_algo].load(trained_m_path, env=env,
+                                                         verbose=args.verbose, **sub_hyperparams)
+                        print("Subpolicy %d loaded from pretrained" % i)
+
                     if sub_algo == "her":
                         replay_wrappers.append(sub_model.replay_wrapper)
                         sub_model = sub_model.model
@@ -408,16 +420,123 @@ if __name__ == '__main__':
         inner_model.replay_wrappers = replay_wrappers
         inner_model.args = args
         inner_model.save_folder = params_path
-        model.learn(n_timesteps, **kwargs)
+        if args.trained_agent_folder == '':
+            model.learn(n_timesteps, **kwargs)
+
+        # Eval model for `n_eval_episodes` times
+        env = gym.make(env_id)
+        if env_wrapper is not None:
+            env = env_wrapper(env)
+        ob = env.reset()
+        model.macro_count = 0
+        model.macro_act = None
+        episode_reward = 0.0
+        episode_rewards = []
+        ep_len = 0
+        macro_actions = []
+        macro_probs = []
+				# For HER, monitor success rate
+        successes = []
+        # Record frames to create videos
+        need_record_frames = args.n_episodes_record_frames > 0
+        n_episodes_recorded = 0
+        rgb_arrays = []
+        rewards_each_step = []
+        if need_record_frames:
+            from pyvirtualdisplay import Display
+            display = Display(visible=0, size=(1400, 900))
+            display.start()
+
+        while True:
+            if need_record_frames:
+                rgb = env.render('rgb_array')
+                rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
+                rgb_arrays.append(rgb)
+
+            macro_action, action, _ = model.predict(ob, deterministic=True)
+            ob, reward, done, info = env.step(action)
+            episode_reward += reward
+            ep_len += 1
+            macro_actions.append(macro_action)
+            rewards_each_step.append(reward)
+
+            if done:
+                if need_record_frames:
+                    current_save_folder = os.path.join(params_path, 'eval_ep' + str(n_episodes_recorded))
+                    print("Save frames to folder: %s" % current_save_folder)
+                    os.makedirs(current_save_folder, exist_ok=True)
+                    statistic_file = os.path.join(current_save_folder, 'statistic_file.txt')
+                    rgb_arrays_file = os.path.join(current_save_folder, 'rgb_arrays.pickle')
+                    with open(statistic_file, 'w') as f:
+                        ep_ret = sum(rewards_each_step)
+                        f.write('%d: %f' % (n_episodes_recorded, ep_ret) + '\n')
+                        d = {'macro_ac': macro_actions, 'rews_without_cost': rewards_each_step}
+                        needed_keys = ['macro_ac', 'rews_without_cost']
+                        for key in needed_keys:
+                            f.write(key + '\n')
+                            for v in d[key]:
+                                f.write(str(v) + ' ')
+                            f.write('\n\n')
+                    rgb_arrays = np.array(rgb_arrays)
+                    rgb_arrays.dump(rgb_arrays_file)
+                    n_episodes_recorded += 1
+
+                if n_episodes_recorded >= args.n_episodes_record_frames:
+                    need_record_frames = False
+
+                # NOTE: for env using VecNormalize, the mean reward
+                # is a normalized reward when `--norm_reward` flag is passed
+                episode_rewards.append(episode_reward)
+                macro_probs.append(np.mean(macro_actions))
+                episode_reward = 0.0
+                ep_len = 0
+                macro_actions = []
+                rewards_each_step = []
+                rgb_arrays = []
+                model.macro_count = 0
+                model.macro_act = None
+
+                # For HER, record success rate
+                maybe_is_success = info.get('is_success')
+                if maybe_is_success is not None:
+                    successes.append(float(maybe_is_success))
+
+                if len(episode_rewards) >= args.n_eval_episodes:
+                    break
+                else:
+                    obs = env.reset()
+
+        print("=" * 70)
+        print("Evaluation result:")
+        print("Number of total eval episodes:", args.n_eval_episodes)
+        if len(successes) != 0:
+            print("Number of success episodes:", np.sum(np.array(successes) == 1.0))
+        print("Mean episode reward:", np.mean(episode_rewards))
+        print("\% of macro using large policy:", macro_probs[:100])
+
+        # Save macro acts, episode return, success to file
+        eval_result_file = os.path.join(params_path, 'eval_result.txt')
+        with open(eval_result_file, 'w') as f:
+            d = {'macro_ratio': macro_probs, 'return': episode_rewards, 'success': successes}
+            for key in d:
+                f.write(key + '\n')
+                for v in d[key]:
+                    f.write(str(v) + ' ')
+                f.write('\n\n')
 
         # Only save worker of rank 0 when using mpi
         if rank == 0:
             print("Saving to {}".format(save_path))
 
             model.save("{}/{}".format(save_path, env_id))
+            for i, sub_model in enumerate(inner_model.sub_models):
+                sub_model.save("{}/{}_sub{}".format(save_path, env_id, i))
             # Save hyperparams
-            with open(os.path.join(params_path, 'config.yml'), 'w') as f:
+            with open(os.path.join(params_path, 'config.yml'), 'a') as f:
                 yaml.dump(saved_hyperparams, f)
+                f.write('\n\n\n')
+                yaml.dump(args, f)
+
 
             if normalize:
                 # Unwrap
