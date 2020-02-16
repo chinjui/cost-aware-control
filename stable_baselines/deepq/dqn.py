@@ -425,7 +425,8 @@ class DQN(OffPolicyRLModel):
 
         # Sample from sub_policy
         current_sub = self.sub_models[self.macro_act]
-        action = current_sub.policy_tf.step(observation, deterministic=deterministic).flatten()
+        action = current_sub.policy_tf.step(observation, deterministic=deterministic)
+        action = action.reshape((-1,) + self.action_space.shape)  # reshape to the correct action shape
         # inferred actions need to be transformed to environment action_space before stepping
         unscaled_action = unscale_action(self.env.action_space, action)
 

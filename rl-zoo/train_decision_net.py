@@ -395,6 +395,14 @@ if __name__ == '__main__':
                     if 'model_class' in sub_hyperparams:
                         sub_hyperparams['model_class'] = ALGOS["sac"]
 
+                    if 'noise_type' in sub_hyperparams and 'ornstein-uhlenbeck' == sub_hyperparams['noise_type']:
+                        n_actions = env.action_space.shape[0]
+                        noise_std = sub_hyperparams['noise_std']
+                        hyperparams['action_noise'] = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions),
+                                                                           sigma=noise_std * np.ones(n_actions))
+                        del sub_hyperparams['noise_type']
+                        del sub_hyperparams['noise_std']
+
                     if args.trained_agent_folder == '':
                         sub_model = ALGOS[sub_algo](env=env, verbose=args.verbose, **sub_hyperparams)
                     else:
@@ -454,6 +462,8 @@ if __name__ == '__main__':
                 rgb_arrays.append(rgb)
 
             macro_action, action, _ = model.predict(ob, deterministic=True)
+            if type(action) in np.ScalarType:
+              action = [action]
             ob, reward, done, info = env.step(action)
             episode_reward += reward
             ep_len += 1

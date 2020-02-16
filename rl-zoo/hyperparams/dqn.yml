@@ -11,6 +11,15 @@ atari:
   prioritized_replay_alpha: 0.6
   prioritized_replay: True
 
+MountainCarContinuous-v0:
+  n_timesteps: !!float 60000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
 Pendulum-v0:
   n_timesteps: !!float 60000
   policy: 'MlpPolicy'
@@ -49,7 +58,7 @@ InvertedDoublePendulum-v2:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 HalfCheetah-v3:
-  n_timesteps: !!float 1300000
+  n_timesteps: !!float 2000000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
