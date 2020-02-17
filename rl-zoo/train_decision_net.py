@@ -428,16 +428,17 @@ if __name__ == '__main__':
         inner_model.replay_wrappers = replay_wrappers
         inner_model.args = args
         inner_model.save_folder = params_path
-        if args.trained_agent_folder == '':
-            model.learn(n_timesteps, **kwargs)
+        # if args.trained_agent_folder == '':
+        model.learn(n_timesteps, **kwargs)
 
         # Eval model for `n_eval_episodes` times
-        env = gym.make(env_id)
-        if env_wrapper is not None:
-            env = env_wrapper(env)
+        # env = gym.make(env_id)
+        # if env_wrapper is not None:
+        #     env = env_wrapper(env)
+        env = inner_model.env
         ob = env.reset()
-        model.macro_count = 0
-        model.macro_act = None
+        inner_model.macro_count = 0
+        inner_model.macro_act = None
         episode_reward = 0.0
         episode_rewards = []
         ep_len = 0
@@ -503,8 +504,8 @@ if __name__ == '__main__':
                 macro_actions = []
                 rewards_each_step = []
                 rgb_arrays = []
-                model.macro_count = 0
-                model.macro_act = None
+                inner_model.macro_count = 0
+                inner_model.macro_act = None
 
                 # For HER, record success rate
                 maybe_is_success = info.get('is_success')
