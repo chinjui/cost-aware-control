@@ -419,8 +419,8 @@ class DQN(OffPolicyRLModel):
         observation = observation.reshape((-1,) + self.observation_space.shape)
         with self.sess.as_default():
             if self.macro_count % self.macro_len == 0:
-                # macro_actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
-                macro_actions = self.act(observation, update_eps=0)
+                macro_actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
+                # macro_actions = self.act(observation, update_eps=0)
                 self.macro_act = macro_actions[0]   # not supporting vectorized_env
             self.macro_count += 1
 

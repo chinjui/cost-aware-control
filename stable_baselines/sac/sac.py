@@ -21,8 +21,9 @@ def get_vars(scope):
     :param scope: (str)
     :return: [tf Variable]
     """
-    prefix = tf.get_variable_scope().name.split('/')[0] + '/'
-    return tf_util.get_trainable_vars(prefix + scope)
+    # prefix = tf.get_variable_scope().name.split('/')[0] + '/'
+    # return tf_util.get_trainable_vars(prefix + scope)
+    return tf_util.get_trainable_vars(scope)
 
 
 class SAC(OffPolicyRLModel):
@@ -143,8 +144,8 @@ class SAC(OffPolicyRLModel):
 
     def setup_model(self):
         with SetVerbosity(self.verbose):
-            # self.graph = tf.Graph()
-            self.graph = tf.compat.v1.get_default_graph()
+            self.graph = tf.Graph()
+            # self.graph = tf.compat.v1.get_default_graph()
             with self.graph.as_default():
                 self.set_random_seed(self.seed)
                 self.sess = tf_util.make_session(num_cpu=self.n_cpu_tf_sess, graph=self.graph)

@@ -70,8 +70,8 @@ if __name__ == '__main__':
     parser.add_argument("--sub-hidden-sizes", nargs="*", type=int, default=[8, 64])
 
     # need to record frames for the last few episodes?
-    parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=20)
-    parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=3000)
+    parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=15)
+    parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=600)
 
     args = parser.parse_args()
 
@@ -347,75 +347,74 @@ if __name__ == '__main__':
             inner_model = model
         with inner_model.graph.as_default():
             for i in range(n_sub_models):
-                with tf.variable_scope("subpolicy%d" % i) as scope:
-                    # Load hyperparameters for sub_policy from yaml file
-                    if 'Fetch' in args.env[0]:
-                        hyper_file = 'hyperparams/her.yml'
-                        sub_algo = "her"
+                # Load hyperparameters for sub_policy from yaml file
+                if 'Fetch' in args.env[0]:
+                    hyper_file = 'hyperparams/her.yml'
+                    sub_algo = "her"
+                else:
+                    hyper_file = 'hyperparams/sac.yml'
+                    sub_algo = "sac"
+                with open(hyper_file, 'r') as f:
+                    hyperparams_dict = yaml.load(f)
+                    if env_id in list(hyperparams_dict.keys()):
+                        sub_hyperparams = hyperparams_dict[env_id]
+                    elif is_atari:
+                        # hyperparams = hyperparams_dict['atari']
+                        raise ValueError("Not supporting atari envs")
                     else:
-                        hyper_file = 'hyperparams/sac.yml'
-                        sub_algo = "sac"
-                    with open(hyper_file, 'r') as f:
-                        hyperparams_dict = yaml.load(f)
-                        if env_id in list(hyperparams_dict.keys()):
-                            sub_hyperparams = hyperparams_dict[env_id]
-                        elif is_atari:
-                            # hyperparams = hyperparams_dict['atari']
-                            raise ValueError("Not supporting atari envs")
-                        else:
-                            raise ValueError("Hyperparameters not found for {}-{}".format(hyper_file, env_id))
+                        raise ValueError("Hyperparameters not found for {}-{}".format(hyper_file, env_id))
 
-                    # prepare hyperparams
-                    for key in ['learning_rate', 'cliprange', 'cliprange_vf']:
-                        if key not in sub_hyperparams:
+                # prepare hyperparams
+                for key in ['learning_rate', 'cliprange', 'cliprange_vf']:
+                    if key not in sub_hyperparams:
+                        continue
+                    if isinstance(sub_hyperparams[key], str):
+                        schedule, initial_value = sub_hyperparams[key].split('_')
+                        initial_value = float(initial_value)
+                        sub_hyperparams[key] = linear_schedule(initial_value)
+                    elif isinstance(sub_hyperparams[key], (float, int)):
+                        # Negative value: ignore (ex: for clipping)
+                        if sub_hyperparams[key] < 0:
                             continue
-                        if isinstance(sub_hyperparams[key], str):
-                            schedule, initial_value = sub_hyperparams[key].split('_')
-                            initial_value = float(initial_value)
-                            sub_hyperparams[key] = linear_schedule(initial_value)
-                        elif isinstance(sub_hyperparams[key], (float, int)):
-                            # Negative value: ignore (ex: for clipping)
-                            if sub_hyperparams[key] < 0:
-                                continue
-                            sub_hyperparams[key] = constfn(float(sub_hyperparams[key]))
-                        else:
-                            raise ValueError('Invalid value for {}: {}'.format(key, sub_hyperparams[key]))
-                    sub_hyperparams['policy_kwargs'] = dict(layers=[args.sub_hidden_sizes[i]] * 2)  # 2 layers
-
-                    # Delete keys so the dict can be pass to the model constructor
-                    if 'n_envs' in sub_hyperparams.keys():
-                        del sub_hyperparams['n_envs']
-                    del sub_hyperparams['n_timesteps']
-
-                    # obtain a class object from a wrapper name string in hyperparams
-                    # and delete the entry
-                    if 'env_wrapper' in sub_hyperparams.keys():
-                        del sub_hyperparams['env_wrapper']
-
-                    if 'model_class' in sub_hyperparams:
-                        sub_hyperparams['model_class'] = ALGOS["sac"]
-
-                    if 'noise_type' in sub_hyperparams and 'ornstein-uhlenbeck' == sub_hyperparams['noise_type']:
-                        n_actions = env.action_space.shape[0]
-                        noise_std = sub_hyperparams['noise_std']
-                        hyperparams['action_noise'] = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions),
-                                                                           sigma=noise_std * np.ones(n_actions))
-                        del sub_hyperparams['noise_type']
-                        del sub_hyperparams['noise_std']
-
-                    if args.trained_agent_folder == '':
-                        sub_model = ALGOS[sub_algo](env=env, verbose=args.verbose, **sub_hyperparams)
+                        sub_hyperparams[key] = constfn(float(sub_hyperparams[key]))
                     else:
-                        del sub_hyperparams['policy']
-                        trained_m_path = os.path.join(args.trained_agent_folder, '%s_sub%d.zip' % (env_id, i))
-                        sub_model = ALGOS[sub_algo].load(trained_m_path, env=env,
-                                                         verbose=args.verbose, **sub_hyperparams)
-                        print("Subpolicy %d loaded from pretrained" % i)
+                        raise ValueError('Invalid value for {}: {}'.format(key, sub_hyperparams[key]))
+                sub_hyperparams['policy_kwargs'] = dict(layers=[args.sub_hidden_sizes[i]] * 2)  # 2 layers
 
-                    if sub_algo == "her":
-                        replay_wrappers.append(sub_model.replay_wrapper)
-                        sub_model = sub_model.model
-                    sub_models.append(sub_model)
+                # Delete keys so the dict can be pass to the model constructor
+                if 'n_envs' in sub_hyperparams.keys():
+                    del sub_hyperparams['n_envs']
+                del sub_hyperparams['n_timesteps']
+
+                # obtain a class object from a wrapper name string in hyperparams
+                # and delete the entry
+                if 'env_wrapper' in sub_hyperparams.keys():
+                    del sub_hyperparams['env_wrapper']
+
+                if 'model_class' in sub_hyperparams:
+                    sub_hyperparams['model_class'] = ALGOS["sac"]
+
+                if 'noise_type' in sub_hyperparams and 'ornstein-uhlenbeck' == sub_hyperparams['noise_type']:
+                    n_actions = env.action_space.shape[0]
+                    noise_std = sub_hyperparams['noise_std']
+                    hyperparams['action_noise'] = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions),
+                                                                       sigma=noise_std * np.ones(n_actions))
+                    del sub_hyperparams['noise_type']
+                    del sub_hyperparams['noise_std']
+
+                if args.trained_agent_folder == '':
+                    sub_model = ALGOS[sub_algo](env=env, verbose=args.verbose, **sub_hyperparams)
+                else:
+                    del sub_hyperparams['policy']
+                    trained_m_path = os.path.join(args.trained_agent_folder, '%s_sub%d.zip' % (env_id, i))
+                    sub_model = ALGOS[sub_algo].load(trained_m_path, env=env,
+                                                     verbose=args.verbose, **sub_hyperparams)
+                    print("Subpolicy %d loaded from pretrained" % i)
+
+                if sub_algo == "her":
+                    replay_wrappers.append(sub_model.replay_wrapper)
+                    sub_model = sub_model.model
+                sub_models.append(sub_model)
 
         # place to save trained model
         log_path = "{}/{}/".format(args.log_folder, args.algo)
