@@ -427,8 +427,8 @@ if __name__ == '__main__':
         inner_model.replay_wrappers = replay_wrappers
         inner_model.args = args
         inner_model.save_folder = params_path
-        # if args.trained_agent_folder == '':
-        model.learn(n_timesteps, **kwargs)
+        if args.trained_agent_folder == '':
+            model.learn(n_timesteps, **kwargs)
 
         # Eval model for `n_eval_episodes` times
         # env = gym.make(env_id)
