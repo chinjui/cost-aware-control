@@ -461,7 +461,7 @@ if __name__ == '__main__':
                 rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
                 rgb_arrays.append(rgb)
 
-            macro_action, action, _ = model.predict(ob, deterministic=True)
+            macro_action, action, _ = inner_model.predict(ob, deterministic=True)
             if type(action) in np.ScalarType:
               action = [action]
             ob, reward, done, info = env.step(action)

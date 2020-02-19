@@ -30,7 +30,7 @@ Pendulum-v0:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 Walker2d-v3:
-  n_timesteps: !!float 1900000
+  n_timesteps: !!float 2500000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -49,7 +49,7 @@ InvertedPendulum-v2:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 InvertedDoublePendulum-v2:
-  n_timesteps: !!float 1600000
+  n_timesteps: !!float 2500000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -58,7 +58,7 @@ InvertedDoublePendulum-v2:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 HalfCheetah-v3:
-  n_timesteps: !!float 2000000
+  n_timesteps: !!float 2500000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -86,7 +86,7 @@ Hopper-v3:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 Ant-v3:
-  n_timesteps: !!float 1900000
+  n_timesteps: !!float 2500000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000
@@ -95,7 +95,7 @@ Ant-v3:
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
 Swimmer-v3:
-  n_timesteps: !!float 1900000
+  n_timesteps: !!float 2500000
   policy: 'MlpPolicy'
   learning_rate: !!float 1e-3
   buffer_size: 50000

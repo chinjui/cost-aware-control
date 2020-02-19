@@ -259,7 +259,6 @@ class DQN(OffPolicyRLModel):
                     kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                     kwargs['update_param_noise_scale'] = True
                 with self.sess.as_default():
-                    # TODO: change macro_count % ?? later.
                     if reset or macro_count % macro_len == 0:
                         macro_action = self.act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
                         # macro_action = 1
@@ -427,7 +426,7 @@ class DQN(OffPolicyRLModel):
         # Sample from sub_policy
         current_sub = self.sub_models[self.macro_act]
         action = current_sub.policy_tf.step(observation, deterministic=deterministic)
-        action = action.reshape((-1,) + self.action_space.shape)  # reshape to the correct action shape
+        action = action.reshape((-1,) + self.env.action_space.shape)  # reshape to the correct action shape
         # inferred actions need to be transformed to environment action_space before stepping
         unscaled_action = unscale_action(self.env.action_space, action)
 
