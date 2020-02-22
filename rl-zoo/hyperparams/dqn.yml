@@ -38,6 +38,15 @@ Walker2d-v3:
   exploration_final_eps: 0.02
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
+Reacher-v2:
+  n_timesteps: !!float 1500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
 
 InvertedPendulum-v2:
   n_timesteps: !!float 1600000

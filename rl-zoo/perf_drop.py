@@ -26,7 +26,7 @@ scores = {
           "HalfCheetah-v3":     {8: 1560, 64: 7490,   256: 8105},
           "Swimmer-v3":         {8: 32.3, 64: 46,     256: 81.7},
           "Walker2d-v3":        {8: 581,  64: 1660,   256: 4690},
-          "Ant-v3":             {8: -23,  64: 1720,   256: 3000},
+          "Ant-v3":             {8: -23,  64: 1720,   256: 4350},
           # "Hopper-v3":          {8: 390,  64: 3310,   256: 3060},
           "Hopper-v3":          {8: 390,  64: 2710,   256: 3060},
           "Humanoid-v3":        {8: 77,   64: 3050,   256: 5110},
@@ -35,8 +35,8 @@ scores = {
           "InvertedDoublePendulum-v2": {8: 6000, 64: 9190, 256: 9140},
 
           # success rates
-          "FetchPush-v1":         {8: 0.07, 64: 0.98, 256: 0.99},
-          "FetchPickAndPlace-v1": {8: 0.05, 64: 0.48, 256: 0.99},
+          "FetchPush-v1":         {8: 0.07, 64: 0.98, 256: 1.00},
+          "FetchPickAndPlace-v1": {8: 0.05, 64: 0.48, 256: 1.00},
           }
 
 # policy costs (in flops) of policies with 2 hidden layers
@@ -102,7 +102,7 @@ elif len(data) == 2:
 else:
   raise "Error"
 macro_ratios = data[0]
-combined_returns = data[1] if len(data) == 2 else data[2] # does this file contain success rates?
+combined_returns = data[1] if len(data) == 2 or (len(data) == 3 and len(data[2]) == 0) else data[2] # does this file contain success rates?
 macro_ratios = macro_ratios[-300:]
 combined_returns = combined_returns[-300:]
 
@@ -116,7 +116,7 @@ costs = [(ratio * policy_costs[1] + (1-ratio) * policy_costs[0] + (1 / args.macr
 # plot 1: performance v.s. costs
 relative_perf = [r / large_policy_score for r in combined_returns]
 d = pd.DataFrame(data={'Perf (0 ~ large policy score)': relative_perf, 'Costs (%)': costs})
-g = sns.jointplot('Costs (%)', 'Perf (0 ~ large policy score)', data=d, color="m")
+g = sns.jointplot('Costs (%)', 'Perf (0 ~ large policy score)', data=d, color="m", kind='reg', ratio=3, marginal_kws=dict(bins=15))
 # axes[0].set_xlim([0, 1])
 # axes[0].set_ylim([0, 1])
 # plt.ylim(min(0, min(relative_perf)), max(1, max(relative_perf)))

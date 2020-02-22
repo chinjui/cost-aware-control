@@ -462,8 +462,6 @@ if __name__ == '__main__':
                 rgb_arrays.append(rgb)
 
             macro_action, action, _ = inner_model.predict(ob, deterministic=True)
-            if type(action) in np.ScalarType:
-              action = [action]
             ob, reward, done, info = env.step(action)
             episode_reward += reward
             ep_len += 1
