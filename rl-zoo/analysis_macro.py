@@ -16,11 +16,13 @@ folder = args.folder
 assert folder != ''
 statistic_file = os.path.join(folder, 'statistic_file.txt')
 rgb_file = os.path.join(folder, 'rgb_arrays.pickle')
+action_file = os.path.join(folder, 'actions.pickle')
 path = os.path.normpath(folder)
 video_name = path.split(os.sep)[2]
 video_name += '_' + path.split(os.sep)[4]
 
 rgbs = np.load(rgb_file, allow_pickle=True)
+actions = np.load(action_file, allow_pickle=True)
 
 with open(statistic_file, 'r') as f:
   for i, line in enumerate(f):

@@ -70,11 +70,12 @@ if __name__ == '__main__':
     parser.add_argument("--sub-hidden-sizes", nargs="*", type=int, default=[8, 64])
 
     # need to record frames for the last few episodes?
-    parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=0)
-    parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=200)
-    parser.add_argument('--deterministic', action='store_true')
+    parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=8)
+    parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=500)
 
     args = parser.parse_args()
+
+    assert args.trained_agent_folder != ''
 
     # Going through custom gym packages to let them register in the global registory
     for env_module in args.gym_packages:
@@ -430,115 +431,117 @@ if __name__ == '__main__':
         inner_model.save_folder = params_path
         if args.trained_agent_folder == '':
             model.learn(n_timesteps, **kwargs)
+        else:
+            model.eval(n_timesteps, **kwargs)
 
-        # Eval model for `n_eval_episodes` times
-        # env = gym.make(env_id)
-        # if env_wrapper is not None:
-        #     env = env_wrapper(env)
-        env = inner_model.env
-        ob = env.reset()
-        inner_model.macro_count = 0
-        inner_model.macro_act = None
-        episode_reward = 0.0
-        episode_rewards = []
-        ep_len = 0
-        macro_actions = []
-        macro_probs = []
-        actions = []
-				# For HER, monitor success rate
-        successes = []
-        # Record frames to create videos
-        need_record_frames = args.n_episodes_record_frames > 0
-        n_episodes_recorded = 0
-        rgb_arrays = []
-        rewards_each_step = []
-        if need_record_frames:
-            from pyvirtualdisplay import Display
-            display = Display(visible=0, size=(1400, 900))
-            display.start()
+        # # Eval model for `n_eval_episodes` times
+        # # env = gym.make(env_id)
+        # # if env_wrapper is not None:
+        # #     env = env_wrapper(env)
+        # env = inner_model.env
+        # ob = env.reset()
+        # inner_model.macro_count = 0
+        # inner_model.macro_act = None
+        # episode_reward = 0.0
+        # episode_rewards = []
+        # ep_len = 0
+        # macro_actions = []
+        # macro_probs = []
+        # actions = []
+				# # For HER, monitor success rate
+        # successes = []
+        # # Record frames to create videos
+        # need_record_frames = args.n_episodes_record_frames > 0
+        # n_episodes_recorded = 0
+        # rgb_arrays = []
+        # rewards_each_step = []
+        # if need_record_frames:
+        #     from pyvirtualdisplay import Display
+        #     display = Display(visible=0, size=(1400, 900))
+        #     display.start()
 
-        while True:
-            if need_record_frames:
-                rgb = env.render('rgb_array')
-                rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
-                rgb_arrays.append(rgb)
+        # while True:
+        #     if need_record_frames:
+        #         rgb = env.render('rgb_array')
+        #         rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
+        #         rgb_arrays.append(rgb)
 
-            macro_action, action, _ = inner_model.predict(ob, deterministic=args.deterministic)
-            ob, reward, done, info = env.step(action)
-            episode_reward += reward
-            actions.append(action)
-            ep_len += 1
-            macro_actions.append(macro_action)
-            rewards_each_step.append(reward)
+        #     macro_action, action, _ = inner_model.predict(ob, deterministic=True)
+        #     ob, reward, done, info = env.step(action)
+        #     episode_reward += reward
+        #     actions.append(action)
+        #     ep_len += 1
+        #     macro_actions.append(macro_action)
+        #     rewards_each_step.append(reward)
 
-            if done:
-                if need_record_frames:
-                    current_save_folder = os.path.join(params_path, 'eval_ep' + str(n_episodes_recorded))
-                    print("Save frames to folder: %s" % current_save_folder)
-                    os.makedirs(current_save_folder, exist_ok=True)
-                    statistic_file = os.path.join(current_save_folder, 'statistic_file.txt')
-                    rgb_arrays_file = os.path.join(current_save_folder, 'rgb_arrays.pickle')
-                    actions_file = os.path.join(current_save_folder, 'actions.pickle')
-                    with open(statistic_file, 'w') as f:
-                        ep_ret = sum(rewards_each_step)
-                        f.write('%d: %f' % (n_episodes_recorded, ep_ret) + '\n')
-                        d = {'macro_ac': macro_actions, 'rews_without_cost': rewards_each_step}
-                        needed_keys = ['macro_ac', 'rews_without_cost']
-                        for key in needed_keys:
-                            f.write(key + '\n')
-                            for v in d[key]:
-                                f.write(str(v) + ' ')
-                            f.write('\n\n')
-                    rgb_arrays = np.array(rgb_arrays)
-                    rgb_arrays.dump(rgb_arrays_file)
-                    actions = np.array(actions)
-                    print("episode reward:", episode_reward, ",macro_ratio:", np.mean(macro_actions))
-                    actions.dump(actions_file)
-                    n_episodes_recorded += 1
+        #     if done:
+        #         if need_record_frames:
+        #             current_save_folder = os.path.join(params_path, 'eval_ep' + str(n_episodes_recorded))
+        #             print("Save frames to folder: %s" % current_save_folder)
+        #             os.makedirs(current_save_folder, exist_ok=True)
+        #             statistic_file = os.path.join(current_save_folder, 'statistic_file.txt')
+        #             rgb_arrays_file = os.path.join(current_save_folder, 'rgb_arrays.pickle')
+        #             actions_file = os.path.join(current_save_folder, 'actions.pickle')
+        #             with open(statistic_file, 'w') as f:
+        #                 ep_ret = sum(rewards_each_step)
+        #                 f.write('%d: %f' % (n_episodes_recorded, ep_ret) + '\n')
+        #                 d = {'macro_ac': macro_actions, 'rews_without_cost': rewards_each_step}
+        #                 needed_keys = ['macro_ac', 'rews_without_cost']
+        #                 for key in needed_keys:
+        #                     f.write(key + '\n')
+        #                     for v in d[key]:
+        #                         f.write(str(v) + ' ')
+        #                     f.write('\n\n')
+        #             rgb_arrays = np.array(rgb_arrays)
+        #             rgb_arrays.dump(rgb_arrays_file)
+        #             actions = np.array(actions)
+        #             print("shape of actions:", actions.shape)
+        #             actions.dump(actions_file)
+        #             n_episodes_recorded += 1
 
-                if n_episodes_recorded >= args.n_episodes_record_frames:
-                    need_record_frames = False
+        #         if n_episodes_recorded >= args.n_episodes_record_frames:
+        #             need_record_frames = False
 
-                # NOTE: for env using VecNormalize, the mean reward
-                # is a normalized reward when `--norm_reward` flag is passed
-                episode_rewards.append(episode_reward)
-                macro_probs.append(np.mean(macro_actions))
-                episode_reward = 0.0
-                ep_len = 0
-                macro_actions = []
-                rewards_each_step = []
-                rgb_arrays = []
-                actions = []
-                inner_model.macro_count = 0
-                inner_model.macro_act = None
+        #         # NOTE: for env using VecNormalize, the mean reward
+        #         # is a normalized reward when `--norm_reward` flag is passed
+        #         episode_rewards.append(episode_reward)
+        #         macro_probs.append(np.mean(macro_actions))
+        #         episode_reward = 0.0
+        #         ep_len = 0
+        #         macro_actions = []
+        #         rewards_each_step = []
+        #         rgb_arrays = []
+        #         actions = []
+        #         inner_model.macro_count = 0
+        #         inner_model.macro_act = None
 
-                # For HER, record success rate
-                maybe_is_success = info.get('is_success')
-                if maybe_is_success is not None:
-                    successes.append(float(maybe_is_success))
+        #         # For HER, record success rate
+        #         maybe_is_success = info.get('is_success')
+        #         if maybe_is_success is not None:
+        #             successes.append(float(maybe_is_success))
 
-                if len(episode_rewards) >= args.n_eval_episodes:
-                    break
-                else:
-                    obs = env.reset()
+        #         if len(episode_rewards) >= args.n_eval_episodes:
+        #             break
+        #         else:
+        #             obs = env.reset()
 
-        print("=" * 70)
-        print("Evaluation result:")
-        print("Number of total eval episodes:", args.n_eval_episodes)
-        if len(successes) != 0:
-            print("Number of success episodes:", np.sum(np.array(successes) == 1.0))
-        print("Mean episode reward:", np.mean(episode_rewards))
-        print("% of macro using large policy:", macro_probs[:100])
-        print("Mean % of macro using large policy:", np.mean(macro_probs))
-        # Save macro acts, episode return, success to file
-        eval_result_file = os.path.join(params_path, 'eval_result.txt')
-        with open(eval_result_file, 'w') as f:
-            d = {'macro_ratio': macro_probs, 'return': episode_rewards, 'success': successes}
-            for key in d:
-                f.write(key + '\n')
-                for v in d[key]:
-                    f.write(str(v) + ' ')
-                f.write('\n\n')
+        # print("=" * 70)
+        # print("Evaluation result:")
+        # print("Number of total eval episodes:", args.n_eval_episodes)
+        # if len(successes) != 0:
+        #     print("Number of success episodes:", np.sum(np.array(successes) == 1.0))
+        # print("Mean episode reward:", np.mean(episode_rewards))
+        # print("\% of macro using large policy:", macro_probs[:100])
+
+        # # Save macro acts, episode return, success to file
+        # eval_result_file = os.path.join(params_path, 'eval_result.txt')
+        # with open(eval_result_file, 'w') as f:
+        #     d = {'macro_ratio': macro_probs, 'return': episode_rewards, 'success': successes}
+        #     for key in d:
+        #         f.write(key + '\n')
+        #         for v in d[key]:
+        #             f.write(str(v) + ' ')
+        #         f.write('\n\n')
 
         # Only save worker of rank 0 when using mpi
         if rank == 0:

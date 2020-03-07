@@ -411,6 +411,94 @@ class DQN(OffPolicyRLModel):
 
         return self
 
+    def eval(self, total_episodes, callback=None, log_interval=100, tb_log_name="DQN",
+              reset_num_timesteps=True, replay_wrapper=None):
+
+        new_tb_log = self._init_num_timesteps(reset_num_timesteps)
+        with SetVerbosity(self.verbose), TensorboardWriter(self.graph, self.tensorboard_log, tb_log_name, new_tb_log) \
+                as writer:
+            episode_rewards = [0.0]
+            episode_successes = []
+            obs = self.env.reset()
+            reset = True
+            macro_count = 0
+            macro_len = self.macro_len
+            macro_choices = []
+            n_updates = 0
+            macro_action = None
+
+            # for step in range(total_timesteps):
+            while True:
+                with self.sess.as_default():
+                    if reset or macro_count % macro_len == 0:
+                        # macro_action = self.act(np.array(obs)[None], update_eps=0, **{})[0]
+                        macro_actions, _, _ = self.step_model.step(np.array(obs)[None], deterministic=False)
+                        macro_action = macro_actions[0]
+                        # macro_action = 1
+                        macro_obs = obs
+                        reward_in_one_macro = 0
+                    macro_count += 1
+                    macro_choices.append(macro_action)
+
+                current_sub = self.sub_models[macro_action]
+                action = current_sub.policy_tf.step(obs[None], deterministic=True).flatten()
+                # Add noise to the action (improve exploration,
+                # not needed in general)
+                if current_sub.action_noise is not None:
+                    action = np.clip(action + current_sub.action_noise(), -1, 1)
+                # inferred actions need to be transformed to environment action_space before stepping
+                unscaled_action = unscale_action(self.env.action_space, action)
+                assert action.shape == self.env.action_space.shape
+
+                reset = False
+                new_obs, rew, done, info = self.env.step(unscaled_action)
+                episode_rewards[-1] += rew
+                rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
+                reward_in_one_macro += rew
+                obs = new_obs
+
+
+                # print("step: %d, done: %d" % (self.num_timesteps, done))
+                if done:
+                    maybe_is_success = info.get('is_success')
+                    if maybe_is_success is not None:
+                        episode_successes.append(float(maybe_is_success))
+                    if not isinstance(self.env, VecEnv):
+                        obs = self.env.reset()
+                    episode_rewards.append(0.0)
+                    reset = True
+                    macro_action = None
+                    macro_count = 0
+                    print("=" * 70)
+                    print("macro_choices:", macro_choices)
+                    print("return:", episode_rewards[-2])
+                    print("=" * 70)
+                    prev_macro_choices = macro_choices
+                    macro_choices = []
+                    if len(episode_rewards) - 1 == total_episodes:
+                      break
+
+                if len(episode_rewards[-101:-1]) == 0:
+                    mean_100ep_reward = -np.inf
+                else:
+                    mean_100ep_reward = round(float(np.mean(episode_rewards[-101:-1])), 1)
+
+                num_episodes = len(episode_rewards)
+                # print(done, log_interval, len(episode_rewards), self.num_timesteps)
+                if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
+                    logger.record_tabular("steps", self.num_timesteps)
+                    logger.record_tabular("macro choices", np.mean(prev_macro_choices))
+                    logger.record_tabular("episodes", num_episodes)
+                    if len(episode_successes) > 0:
+                        logger.logkv("success rate", np.mean(episode_successes[-100:]))
+                    logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
+                    logger.logkv("n_updates_of_sub", n_updates)
+                    logger.dump_tabular()
+                    print("macro choices", prev_macro_choices)
+
+                self.num_timesteps += 1
+
+        return self
     def predict(self, observation, state=None, mask=None, deterministic=True):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
