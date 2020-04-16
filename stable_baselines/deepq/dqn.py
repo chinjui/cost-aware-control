@@ -88,7 +88,7 @@ class DQN(OffPolicyRLModel):
                  prioritized_replay_alpha=0.6, prioritized_replay_beta0=0.4, prioritized_replay_beta_iters=None,
                  prioritized_replay_eps=1e-6, param_noise=False,
                  n_cpu_tf_sess=None, verbose=0, tensorboard_log=None,
-                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False, seed=None):
+                 _init_setup_model=True, policy_kwargs=None, full_tensorboard_log=False, seed=None, n_actions=2):
 
         # TODO: replay_buffer refactoring
         super(DQN, self).__init__(policy=policy, env=env, replay_buffer=None, verbose=verbose, policy_base=DQNPolicy,
@@ -132,6 +132,7 @@ class DQN(OffPolicyRLModel):
         self.params = None
         self.summary = None
 
+        self.n_actions = n_actions
         self.macro_len = 5
         self.macro_count = 0  # when macro_count % macro_len == 0, resample macro action
 
@@ -145,8 +146,8 @@ class DQN(OffPolicyRLModel):
     def setup_model(self):
 
         with SetVerbosity(self.verbose):
-            # decision net: produce categorical distribution (2 choices)
-            self.action_space = gym.spaces.discrete.Discrete(2)
+            # decision net: produce categorical distribution
+            self.action_space = gym.spaces.discrete.Discrete(self.n_actions)
 
             assert not isinstance(self.action_space, gym.spaces.Box), \
                 "Error: DQN cannot output a gym.spaces.Box action space."
@@ -288,8 +289,8 @@ class DQN(OffPolicyRLModel):
                 reset = False
                 new_obs, rew, done, info = self.env.step(unscaled_action)
                 episode_rewards[-1] += rew
-                rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
-                reward_in_one_macro += rew
+                # rew -= self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
+                reward_in_one_macro += rew - self.args.policy_cost_coef * self.args.sub_policy_costs[macro_action]
                 # Store transition in the replay buffer.
                 if macro_count % macro_len == 0 or done:
                     self.replay_buffer.add(macro_obs, macro_action, reward_in_one_macro, new_obs, float(done))
@@ -396,7 +397,9 @@ class DQN(OffPolicyRLModel):
                 # print(done, log_interval, len(episode_rewards), self.num_timesteps)
                 if self.verbose >= 1 and done and log_interval is not None and len(episode_rewards) % log_interval == 0:
                     logger.record_tabular("steps", self.num_timesteps)
-                    logger.record_tabular("macro choices", np.mean(prev_macro_choices))
+                    prev_macro_choices = np.array(prev_macro_choices)
+                    macro_choices_ratio = ['%.2f' % ((prev_macro_choices[prev_macro_choices == i]).size / prev_macro_choices.size) for i in range(self.n_actions)]
+                    logger.record_tabular("macro choices", macro_choices_ratio)
                     logger.record_tabular("episodes", num_episodes)
                     if len(episode_successes) > 0:
                         logger.logkv("success rate", np.mean(episode_successes[-100:]))

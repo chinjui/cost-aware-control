@@ -21,6 +21,18 @@ exp_name = args.file.split('/')[-3]
 env_id = args.file.split('/')[-2]
 print("Expirience ID: %s, Env ID: %s" % (exp_name, env_id))
 
+random_scores = {
+    "HalfCheetah-v3": -292.10,
+    "Swimmer-v3": -0.189,
+    "Walker2d-v3": 1.625,
+    "Ant-v3": -50.882,
+    "Hopper-v3": 14.11,
+    "InvertedDoublePendulum-v2": 59.09,
+    "Reacher-v2": -42.32,
+    "FetchPush-v1": 0.068,
+    "FetchPickAndPlace-v1": 0.034,
+    "FetchSlide-v1": 0
+                }
 scores = {
           # returns
           "HalfCheetah-v3":     {8: 1560, 64: 7490,   256: 8105},
@@ -78,7 +90,7 @@ costs = {8:  595,
 # print("policy1_reutnrs:", policy1_returns)
 # policy0_returns = 3501.64
 large_policy_score = scores[env_id][args.sub_hidden_sizes[1]]
-
+random_score = random_scores[env_id]
 
 # use the last 300 results
 # combined_returns: returns of combined macro policy (i.e. macro, small, large)
@@ -114,12 +126,17 @@ costs = [(ratio * policy_costs[1] + (1-ratio) * policy_costs[0] + (1 / args.macr
 # fig, axes = plt.subplots(ncols=2)
 
 # plot 1: performance v.s. costs
-if env_id == 'Reacher-v2':
+if env_id == '':
   relative_perf = combined_returns
 else:
   relative_perf = [r / large_policy_score for r in combined_returns]
+  relative_perf = [(r-random_score) / (large_policy_score-random_score) for r in combined_returns]
 d = pd.DataFrame(data={'Perf (0 ~ large policy score)': relative_perf, 'Costs (%)': costs})
 g = sns.jointplot('Costs (%)', 'Perf (0 ~ large policy score)', data=d, color="m", kind='reg', ratio=3, marginal_kws=dict(bins=15))
+g.ax_joint.set_ylabel('')
+g.ax_joint.set_xlabel('')
+g.ax_joint.set_xlim([0, 1.1])
+g.ax_joint.set_ylim([-0.1, 1.5])
 # axes[0].set_xlim([0, 1])
 # axes[0].set_ylim([0, 1])
 # plt.ylim(min(0, min(relative_perf)), max(1, max(relative_perf)))
@@ -134,6 +151,6 @@ g = sns.jointplot('Costs (%)', 'Perf (0 ~ large policy score)', data=d, color="m
 textstr = exp_name + '\n'
 # textstr = textstr + "small policy: %.2f, large policy: %.2f\n" % (policy0_returns, policy1_returns)
 # textstr += "costs: %.2f : %.2f" % (policy_costs[0], policy_costs[1])
-plt.suptitle(textstr, y=0.03)
+# plt.suptitle(textstr, y=0.03)
 
 plt.show()
