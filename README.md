@@ -12,7 +12,7 @@ cd stable-baselines
 pip install -e .
 ```
 
-##Training example
+## Training example
 ```bash
 python rl-zoo/train_decision_net.py --env Swimmer-v3 --algo dqn --sub-hidden-sizes 8 256 --sub-policy-costs 1 245 --policy-cost-coef 1e-4
 ```
