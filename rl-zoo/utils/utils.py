@@ -58,13 +58,12 @@ class CustomMlpPolicy(BasePolicy):
 
 class CustomSACPolicy(SACPolicy):
     def __init__(self, *args, **kwargs):
-        if 'layers' in kwargs:
-            super(CustomSACPolicy, self).__init__(*args, **kwargs,
-                                                  feature_extraction="mlp")
-        else:
-            super(CustomSACPolicy, self).__init__(*args, **kwargs,
-                                                  layers=[256, 256],
-                                                  feature_extraction="mlp")
+        if 'layers' not in kwargs:
+            kwargs['layers'] = [256, 256]
+        if 'feature_extraction' not in kwargs:
+            kwargs['feature_extraction'] = 'mlp'
+
+        super(CustomSACPolicy, self).__init__(*args, **kwargs)
 
 
 register_policy('CustomSACPolicy', CustomSACPolicy)

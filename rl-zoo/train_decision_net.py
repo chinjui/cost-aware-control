@@ -180,6 +180,9 @@ if __name__ == '__main__':
     parser.add_argument('--trained-agent-folder', help='Path to a pretrained agent to demo training results', default='', type=str)
     parser.add_argument('--exploration-fraction', help='exploration fraction for DQN', type=float, default=0.1)
 
+    # use cnn?
+    parser.add_argument('--cnn', action='store_true', help='whether to use cnn for master and sub policies', default=False)
+
     # subpolicy hypers
     parser.add_argument('--n-subpolicies', type=int, default=2)
     parser.add_argument('--master-hidden-size', type=int, default=32)
@@ -319,7 +322,9 @@ if __name__ == '__main__':
                 normalize = True
             del hyperparams['normalize']
 
-        hyperparams['policy_kwargs'] = dict(layers=[args.master_hidden_size] * 2)  # 2 layers
+        if args.cnn:
+          hyperparams['policy'] = 'CnnPolicy'
+        hyperparams['policy_kwargs'] = dict(layers=[args.master_hidden_size] * 2, cnn_choice='master_cnn')  # 2 layers
 
         # Delete keys so the dict can be pass to the model constructor
         if 'n_envs' in hyperparams.keys():
@@ -510,7 +515,15 @@ if __name__ == '__main__':
                         sub_hyperparams[key] = constfn(float(sub_hyperparams[key]))
                     else:
                         raise ValueError('Invalid value for {}: {}'.format(key, sub_hyperparams[key]))
-                sub_hyperparams['policy_kwargs'] = dict(layers=[args.sub_hidden_sizes[i]] * 2)  # 2 layers
+                if args.cnn:
+                  policy_kwargs = dict(layers=[args.sub_hidden_sizes[i]] * 2, feature_extraction='cnn')
+                  if i == 0:  # small subpolicy
+                    policy_kwargs['cnn_choice'] = 'sub_small_cnn'
+                  elif i == 1:  # large subpolicy
+                    policy_kwargs['cnn_choice'] = 'sub_large_cnn'
+                  sub_hyperparams['policy_kwargs'] = policy_kwargs  # 2 layers
+                else:
+                  sub_hyperparams['policy_kwargs'] = dict(layers=[args.sub_hidden_sizes[i]] * 2, feature_extraction='mlp')  # 2 layers
 
                 # Delete keys so the dict can be pass to the model constructor
                 if 'n_envs' in sub_hyperparams.keys():

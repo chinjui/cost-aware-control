@@ -21,12 +21,28 @@ def nature_cnn(scaled_images, **kwargs):
     :return: (TensorFlow Tensor) The CNN output layer
     """
     activ = tf.nn.relu
-    layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2), **kwargs))
-    layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2), **kwargs))
-    layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
-    layer_3 = conv_to_fc(layer_3)
-    return activ(linear(layer_3, 'fc1', n_hidden=512, init_scale=np.sqrt(2)))
+    # print("use CNN: %s" % tf.get_variable_scope().name + "!" * 100)
+    if 'cnn_choice' not in kwargs:
+      raise "You need to provide `cnn_choice` in policy_kwargs"
+    if kwargs['cnn_choice'] == 'master_cnn':
+        layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2)))
+        # layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2)))
+        # layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+        latent = conv_to_fc(layer_1)
+    elif kwargs['cnn_choice'] == 'sub_small_cnn':
+        layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2)))
+        # layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2)))
+        # layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2), **kwargs))
+        latent = conv_to_fc(layer_1)
+    elif kwargs['cnn_choice'] == 'sub_large_cnn':
+        layer_1 = activ(conv(scaled_images, 'c1', n_filters=32, filter_size=8, stride=4, init_scale=np.sqrt(2)))
+        layer_2 = activ(conv(layer_1, 'c2', n_filters=64, filter_size=4, stride=2, init_scale=np.sqrt(2)))
+        layer_3 = activ(conv(layer_2, 'c3', n_filters=64, filter_size=3, stride=1, init_scale=np.sqrt(2)))
+        latent = conv_to_fc(layer_3)
+    else:
+        raise 'Keyerror for `cnn_choice`: %s not recognized' % kwargs['cnn_choice']
 
+    return latent
 
 def mlp_extractor(flat_observations, net_arch, act_fun):
     """
@@ -555,7 +571,9 @@ class FeedForwardPolicy(ActorCriticPolicy):
 
         with tf.variable_scope("model", reuse=reuse):
             if feature_extraction == "cnn":
-                pi_latent = vf_latent = cnn_extractor(self.processed_obs, **kwargs)
+                # pi_latent = vf_latent = cnn_extractor(self.processed_obs, **kwargs)
+                latent = cnn_extractor(self.processed_obs, **kwargs)
+                pi_latent, vf_latent = mlp_extractor(latent, net_arch, act_fun)
             else:
                 pi_latent, vf_latent = mlp_extractor(tf.layers.flatten(self.processed_obs), net_arch, act_fun)
 

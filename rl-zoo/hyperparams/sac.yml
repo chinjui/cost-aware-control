@@ -13,7 +13,7 @@ MountainCarContinuous-v0:
   noise_std: 0.5
 CarRacing-v0:
   n_timesteps: !!float 60000
-  policy: 'MlpPolicy'
+  policy: 'CustomSACPolicy'
   learning_rate: !!float 1e-4
   buffer_size: 50000
   batch_size: 64
