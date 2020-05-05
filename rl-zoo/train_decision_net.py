@@ -38,6 +38,8 @@ from skimage.transform import resize
 from skimage.util import img_as_ubyte
 
 display = None
+
+
 def eval_and_record(model, deterministic, args):
     # Eval model for `n_eval_episodes` times
     # env = gym.make(env_id)
@@ -190,6 +192,11 @@ if __name__ == '__main__':
     parser.add_argument('--n-eval-episodes', help='Number of evaluation episodes', type=int, default=200)
 
     args = parser.parse_args()
+
+    if 'CarRacing' in args.env[0]:
+        from pyvirtualdisplay import Display
+        display = Display(visible=0, size=(1400, 900))
+        display.start()
 
     if args.seed == -1:
       args.seed = int(np.random.randint(65535, size=1)[0])
