@@ -276,3 +276,165 @@ MinitaurBulletDuckEnv-v0:
   train_freq: 1
   gradient_steps: 1
   learning_starts: 1000
+
+pendulum-swingup:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+ball_in_cup-catch:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+finger-spin:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+finger-turn_easy:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+fish-swim:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+fish-upright:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+manipulator-bring_ball:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+point_mass-easy:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+
+acrobot-swingup:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+cartpole-balance:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+cartpole-swingup:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+hopper-stand:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+swimmer-swimmer15:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+swimmer-swimmer6:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+walker-run:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000
+walker-stand:
+  n_timesteps: !!float 2e6
+  policy: 'CustomSACPolicy'
+  learning_rate: lin_3e-4
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 1000

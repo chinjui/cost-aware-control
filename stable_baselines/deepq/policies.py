@@ -95,7 +95,7 @@ class FeedForwardPolicy(DQNPolicy):
                                                 n_batch, dueling=dueling, reuse=reuse,
                                                 scale=(feature_extraction == "cnn"), obs_phs=obs_phs)
 
-        self._kwargs_check(feature_extraction, kwargs)
+        # self._kwargs_check(feature_extraction, kwargs)
 
         if layers is None:
             layers = [64, 64]

@@ -39,6 +39,7 @@ from skimage.util import img_as_ubyte
 
 display = None
 
+import dmc2gym
 
 def eval_and_record(model, deterministic, args):
     # Eval model for `n_eval_episodes` times
@@ -155,6 +156,8 @@ def eval_and_record(model, deterministic, args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--env', type=str, nargs='+', default=["CartPole-v1"], help='environment ID(s)')
+    parser.add_argument('--domain', type=str, default="", help='domain name for DM-control suite')
+    parser.add_argument('--task', type=str, default="", help='task name for DM-control suite')
     parser.add_argument('-tb', '--tensorboard-log', help='Tensorboard log dir', default='', type=str)
     parser.add_argument('-i', '--trained-agent', help='Path to a pretrained agent to continue training',
                         default='', type=str)
@@ -196,6 +199,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    if args.domain != "" and args.task != "":
+        args.env[0] = '%s-%s' % (args.domain, args.task)
+        is_dm_env = True  # is dm-control suite env?
+    else:
+        is_dm_env = False
+
     if 'CarRacing' in args.env[0]:
         from pyvirtualdisplay import Display
         display = Display(visible=0, size=(1400, 900))
@@ -211,14 +220,14 @@ if __name__ == '__main__':
     env_ids = args.env
     registered_envs = set(gym.envs.registry.env_specs.keys())
 
-    for env_id in env_ids:
-        # If the environment is not found, suggest the closest match
-        if env_id not in registered_envs:
-            try:
-                closest_match = difflib.get_close_matches(env_id, registered_envs, n=1)[0]
-            except IndexError:
-                closest_match = "'no close match found...'"
-            raise ValueError('{} not found in gym registry, you maybe meant {}?'.format(env_id, closest_match))
+    # for env_id in env_ids:
+    #     # If the environment is not found, suggest the closest match
+    #     if env_id not in registered_envs:
+    #         try:
+    #             closest_match = difflib.get_close_matches(env_id, registered_envs, n=1)[0]
+    #         except IndexError:
+    #             closest_match = "'no close match found...'"
+    #         raise ValueError('{} not found in gym registry, you maybe meant {}?'.format(env_id, closest_match))
 
     set_global_seeds(args.seed)
 
@@ -348,39 +357,42 @@ if __name__ == '__main__':
             """
             global hyperparams
 
-            if is_atari:
-                if args.verbose > 0:
-                    print("Using Atari wrapper")
-                env = make_atari_env(env_id, num_env=n_envs, seed=args.seed)
-                # Frame-stacking with 4 frames
-                env = VecFrameStack(env, n_stack=4)
-            elif algo_ in ['dqn', 'ddpg']:
-                if hyperparams.get('normalize', False):
-                    print("WARNING: normalization not supported yet for DDPG/DQN")
-                env = gym.make(env_id)
-                env.seed(args.seed)
-                if env_wrapper is not None:
-                    env = env_wrapper(env)
+            if not is_dm_env:
+              if is_atari:
+                  if args.verbose > 0:
+                      print("Using Atari wrapper")
+                  env = make_atari_env(env_id, num_env=n_envs, seed=args.seed)
+                  # Frame-stacking with 4 frames
+                  env = VecFrameStack(env, n_stack=4)
+              elif algo_ in ['dqn', 'ddpg']:
+                  if hyperparams.get('normalize', False):
+                      print("WARNING: normalization not supported yet for DDPG/DQN")
+                  env = gym.make(env_id)
+                  env.seed(args.seed)
+                  if env_wrapper is not None:
+                      env = env_wrapper(env)
+              else:
+                  if n_envs == 1:
+                      env = DummyVecEnv([make_env(env_id, 0, args.seed, wrapper_class=env_wrapper)])
+                  else:
+                      # env = SubprocVecEnv([make_env(env_id, i, args.seed) for i in range(n_envs)])
+                      # On most env, SubprocVecEnv does not help and is quite memory hungry
+                      env = DummyVecEnv([make_env(env_id, i, args.seed, wrapper_class=env_wrapper) for i in range(n_envs)])
+                  if normalize:
+                      if args.verbose > 0:
+                          if len(normalize_kwargs) > 0:
+                              print("Normalization activated: {}".format(normalize_kwargs))
+                          else:
+                              print("Normalizing input and reward")
+                      env = VecNormalize(env, **normalize_kwargs)
+              # Optional Frame-stacking
+              if hyperparams.get('frame_stack', False):
+                  n_stack = hyperparams['frame_stack']
+                  env = VecFrameStack(env, n_stack)
+                  print("Stacking {} frames".format(n_stack))
+                  del hyperparams['frame_stack']
             else:
-                if n_envs == 1:
-                    env = DummyVecEnv([make_env(env_id, 0, args.seed, wrapper_class=env_wrapper)])
-                else:
-                    # env = SubprocVecEnv([make_env(env_id, i, args.seed) for i in range(n_envs)])
-                    # On most env, SubprocVecEnv does not help and is quite memory hungry
-                    env = DummyVecEnv([make_env(env_id, i, args.seed, wrapper_class=env_wrapper) for i in range(n_envs)])
-                if normalize:
-                    if args.verbose > 0:
-                        if len(normalize_kwargs) > 0:
-                            print("Normalization activated: {}".format(normalize_kwargs))
-                        else:
-                            print("Normalizing input and reward")
-                    env = VecNormalize(env, **normalize_kwargs)
-            # Optional Frame-stacking
-            if hyperparams.get('frame_stack', False):
-                n_stack = hyperparams['frame_stack']
-                env = VecFrameStack(env, n_stack)
-                print("Stacking {} frames".format(n_stack))
-                del hyperparams['frame_stack']
+              env = dmc2gym.make(domain_name=args.domain, task_name=args.task, seed=args.seed)
             return env
 
 

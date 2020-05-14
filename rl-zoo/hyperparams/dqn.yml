@@ -224,3 +224,148 @@ Acrobot-v1:
   exploration_fraction: 0.1
   exploration_final_eps: 0.02
   prioritized_replay: True
+ball_in_cup-catch:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+finger-spin:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+finger-turn_easy:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+fish-swim:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+fish-upright:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+manipulator-bring_ball:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+pendulum-swingup:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+point_mass-easy:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+
+acrobot-swingup:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+cartpole-balance:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+cartpole-swingup:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+hopper-stand:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+swimmer-swimmer15:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+swimmer-swimmer6:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+walker-run:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
+walker-stand:
+  n_timesteps: !!float 2500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"

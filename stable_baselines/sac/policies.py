@@ -340,8 +340,10 @@ class MlpPolicy(FeedForwardPolicy):
     """
 
     def __init__(self, sess, ob_space, ac_space, n_env=1, n_steps=1, n_batch=None, reuse=False, **_kwargs):
+        if 'feature_extraction' not in _kwargs:
+          _kwargs['feature_extraction'] = 'mlp'
         super(MlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse,
-                                        feature_extraction="mlp", **_kwargs)
+                                        **_kwargs)
 
 
 class LnMlpPolicy(FeedForwardPolicy):
