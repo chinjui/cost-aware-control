@@ -31,7 +31,15 @@ random_scores = {
     "Reacher-v2": -42.32,
     "FetchPush-v1": 0.068,
     "FetchPickAndPlace-v1": 0.034,
-    "FetchSlide-v1": 0
+    "FetchSlide-v1": 0,
+
+    "cartpole-swingup": 25.8734,
+    "ball_in_cup-catch": 62.95,
+    "finger-spin": 1.04,
+    "fish-swim": 74.27,
+    "walker-stand": 129.10,
+    "MountainCarContinuous-v0": -33.19,
+
                 }
 scores = {
           # returns
@@ -44,6 +52,14 @@ scores = {
           "HumanoidStandup-v2": {8: 1.2e5,64: 1.32e5, 256: 1.97e5},
           "Reacher-v2":         {8: -12.8,64: -5.3,   256: -4.7},
           "InvertedDoublePendulum-v2": {8: 6000, 64: 9190, 256: 9140},
+
+          "cartpole-swingup": {8: 158, 64: 805},
+          "ball_in_cup-catch": {8: 129, 64: 971},
+          "finger-spin": {8: 26.5, 64: 924},
+          "fish-swim": {8: 78.4, 64: 118, 256: 183},
+          "walker-stand": {8: 237, 64: 971},
+          "MountainCarContinuous-v0": {8: -24, 64: 92},
+
 
           # success rates
           "FetchPush-v1":         {8: 0.07, 64: 0.98, 256: 1.00},

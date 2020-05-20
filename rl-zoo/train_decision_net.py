@@ -76,7 +76,7 @@ def eval_and_record(model, deterministic, args):
             rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
             rgb_arrays.append(rgb)
 
-        macro_action, action, _ = model.predict(ob, deterministic=deterministic)
+        macro_action, action, _ = model.predict(ob, deterministic=deterministic, args=args)
         ob, reward, done, info = env.step(action)
         episode_reward += reward
         actions.append(action)
@@ -192,6 +192,8 @@ if __name__ == '__main__':
     parser.add_argument('--policy-cost-coef', type=float, default=0)
     parser.add_argument("--sub-policy-costs", nargs="*", type=float, default=[1, 20])
     parser.add_argument("--sub-hidden-sizes", nargs="*", type=int, default=[8, 64])
+    parser.add_argument('--distinct-replay-buffer', action='store_true', help='different replay buffer entry for small and large policy', default=False)
+    parser.add_argument('--eval-certain-sub', type=int, default=None)
 
     # need to record frames for the last few episodes?
     parser.add_argument('--n-episodes-record-frames', help='Number of episodes to record frames', type=int, default=0)
@@ -333,7 +335,8 @@ if __name__ == '__main__':
 
         if args.cnn:
           hyperparams['policy'] = 'CnnPolicy'
-        hyperparams['policy_kwargs'] = dict(layers=[args.master_hidden_size] * 2, cnn_choice='master_cnn')  # 2 layers
+          hyperparams['policy_kwargs'] = dict(layers=[args.master_hidden_size] * 2, cnn_choice='master_cnn')  # 2 layers
+        hyperparams['policy_kwargs'] = dict(layers=[args.master_hidden_size] * 2)  # 2 layers
 
         # Delete keys so the dict can be pass to the model constructor
         if 'n_envs' in hyperparams.keys():
@@ -484,7 +487,7 @@ if __name__ == '__main__':
         kwargs = {}
         if args.log_interval > -1:
             kwargs = {'log_interval': args.log_interval}
-
+        kwargs['distinct_replay_buffer'] = args.distinct_replay_buffer
 
         sub_models = []
         replay_wrappers = []

@@ -190,7 +190,7 @@ class DQN(OffPolicyRLModel):
                 self.summary = tf.summary.merge_all()
 
     def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="DQN",
-              reset_num_timesteps=True, replay_wrapper=None):
+              reset_num_timesteps=True, replay_wrapper=None, distinct_replay_buffer=False):
 
         new_tb_log = self._init_num_timesteps(reset_num_timesteps)
         for i, m in enumerate(self.sub_models):
@@ -294,8 +294,12 @@ class DQN(OffPolicyRLModel):
                 # Store transition in the replay buffer.
                 if macro_count % macro_len == 0 or done:
                     self.replay_buffer.add(macro_obs, macro_action, reward_in_one_macro, new_obs, float(done))
-                for m in self.sub_models:
-                    m.replay_buffer.add(obs, action, rew, new_obs, float(done))
+                for i, m in enumerate(self.sub_models):
+                    if distinct_replay_buffer:
+                        if i == macro_action:
+                            m.replay_buffer.add(obs, action, rew, new_obs, float(done))
+                    else:
+                        m.replay_buffer.add(obs, action, rew, new_obs, float(done))
                 obs = new_obs
 
                 if writer is not None:
@@ -502,7 +506,7 @@ class DQN(OffPolicyRLModel):
                 self.num_timesteps += 1
 
         return self
-    def predict(self, observation, state=None, mask=None, deterministic=True):
+    def predict(self, observation, state=None, mask=None, deterministic=True, args=None):
         observation = np.array(observation)
         vectorized_env = self._is_vectorized_observation(observation, self.observation_space)
 
@@ -512,6 +516,8 @@ class DQN(OffPolicyRLModel):
                 macro_actions, _, _ = self.step_model.step(observation, deterministic=deterministic)
                 # macro_actions = self.act(observation, update_eps=0)
                 self.macro_act = macro_actions[0]   # not supporting vectorized_env
+                if args.eval_certain_sub != None:
+                    self.macro_act = args.eval_certain_sub
             self.macro_count += 1
 
         # Sample from sub_policy
