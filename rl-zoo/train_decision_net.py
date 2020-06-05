@@ -115,7 +115,8 @@ def eval_and_record(model, deterministic, args):
             # NOTE: for env using VecNormalize, the mean reward
             # is a normalized reward when `--norm_reward` flag is passed
             episode_rewards.append(episode_reward)
-            macro_probs.append(np.mean(macro_actions))
+            # macro_probs.append(np.mean(macro_actions))
+            macro_probs.append(macro_actions)
             episode_reward = 0.0
             ep_len = 0
             macro_actions = []
@@ -135,14 +136,26 @@ def eval_and_record(model, deterministic, args):
             else:
                 obs = env.reset()
 
+    # print(type(macro_probs), type(macro_probs[0]), type(macro_probs[-1]))
+    # print("after casting:", macro_probs_array)
+    for i in range(len(macro_probs)):
+        # print("=" * 70)
+        # print("dtype:", macro_probs_array.dtype)
+        # print("macro_probs_array:", macro_probs_array[i])
+        # for j in range(len(args.sub_hidden_sizes)):
+        #     print("count:", np.count_nonzero(macro_probs_array[i] == j))
+        # print("\n" + "=" * 70)
+        macro_probs[i] = [np.count_nonzero(np.array(macro_probs[i]) == j) / len(macro_probs[i]) for j in range(len(args.sub_hidden_sizes))]
+    macro_probs = np.array(macro_probs)
+
     print("=" * 70)
     print("Evaluation result: (%s)" % deterministic_text)
     print("Number of total eval episodes:", args.n_eval_episodes)
     if len(successes) != 0:
         print("Number of success episodes:", np.sum(np.array(successes) == 1.0))
     print("Mean episode reward:", np.mean(episode_rewards))
-    print("% of macro using large policy:", macro_probs[:100])
-    print("Mean % of macro using large policy:", np.mean(macro_probs))
+    print("% of macro using subpolicies:", macro_probs[:100])
+    print("Mean % of macro using large policy:", np.mean(macro_probs, axis=0))
     print("=" * 70)
     # Save macro acts, episode return, success to file
     eval_result_file = os.path.join(args.params_path, 'eval_result_%s.txt' % deterministic_text)
@@ -187,7 +200,6 @@ if __name__ == '__main__':
     parser.add_argument('--cnn', action='store_true', help='whether to use cnn for master and sub policies', default=False)
 
     # subpolicy hypers
-    parser.add_argument('--n-subpolicies', type=int, default=2)
     parser.add_argument('--master-hidden-size', type=int, default=32)
     parser.add_argument('--policy-cost-coef', type=float, default=0)
     parser.add_argument("--sub-policy-costs", nargs="*", type=float, default=[1, 20])
@@ -313,8 +325,6 @@ if __name__ == '__main__':
                 else:
                     raise ValueError('Invalid value for {}: {}'.format(key, hyperparams[key]))
 
-        # DQN action space
-        hyperparams['n_actions'] = args.n_subpolicies
 
         # Should we overwrite the number of timesteps?
         if args.n_timesteps > 0:
@@ -433,6 +443,8 @@ if __name__ == '__main__':
             if 'noise_std_final' in hyperparams:
                 del hyperparams['noise_std_final']
 
+
+        hyperparams['n_actions'] = len(args.sub_hidden_sizes)
         if args.trained_agent_folder != '':
             # Continue training
             print("Loading pretrained agent")
@@ -497,7 +509,7 @@ if __name__ == '__main__':
         else:
             inner_model = model
         with inner_model.graph.as_default():
-            for i in range(args.n_subpolicies):
+            for i in range(len(args.sub_hidden_sizes)):
                 # Load hyperparameters for sub_policy from yaml file
                 if 'Fetch' in args.env[0]:
                     hyper_file = 'hyperparams/her.yml'
