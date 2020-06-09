@@ -73,7 +73,10 @@ def eval_and_record(model, deterministic, args):
     while True:
         if need_record_frames:
             rgb = env.render('rgb_array')
-            rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
+            if args.domain == '' and args.task == '':
+                rgb = img_as_ubyte(resize(rgb, (rgb.shape[0]//2, rgb.shape[1]//2)))
+            else:
+                rgb = img_as_ubyte(resize(rgb, (rgb.shape[0], rgb.shape[1])))
             rgb_arrays.append(rgb)
 
         macro_action, action, _ = model.predict(ob, deterministic=deterministic, args=args)

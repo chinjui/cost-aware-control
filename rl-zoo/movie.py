@@ -7,6 +7,7 @@ import gym
 import argparse
 import os
 from matplotlib.lines import Line2D
+import dmc2gym
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-f', '--folder', type=str, default='', help='Folder which contains statistic_file.txt and rgb_arrays.pickle')
@@ -18,7 +19,12 @@ folder_split = folder.split(os.sep)
 if folder_split[-1] == '':
   del folder_split[-1]
 env_id = folder_split[-2]
-env = gym.make(env_id)
+try:
+  print("env:", env_id)
+  env = gym.make(env_id)
+except:
+  domain_task = env_id.split('-')
+  env = dmc2gym.make(domain_name=domain_task[0], task_name=domain_task[1], seed=1)
 video_name = folder_split[-3]
 video_name += '-' + folder_split[-1]
 

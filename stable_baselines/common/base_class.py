@@ -987,10 +987,15 @@ class OffPolicyRLModel(BaseRLModel):
         """
         data, params = cls._load_from_file(load_path, custom_objects=custom_objects)
 
+        # if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
+        #     raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
+        #                      "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+        #                                                                       kwargs['policy_kwargs']))
         if 'policy_kwargs' in kwargs and kwargs['policy_kwargs'] != data['policy_kwargs']:
-            raise ValueError("The specified policy kwargs do not equal the stored policy kwargs. "
-                             "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
-                                                                              kwargs['policy_kwargs']))
+            import warnings
+            warnings.warn("The specified policy kwargs do not equal the stored policy kwargs. "
+                          "Stored kwargs: {}, specified kwargs: {}".format(data['policy_kwargs'],
+                                                                              kwargs['policy_kwargs']), UserWarning)
 
         model = cls(policy=data["policy"], env=None, _init_setup_model=False)
         model.__dict__.update(data)

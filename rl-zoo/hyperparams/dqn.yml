@@ -296,6 +296,15 @@ point_mass-easy:
   exploration_final_eps: 0.02
   prioritized_replay: True
   policy_kwargs: "dict(layers=[32, 32])"
+reacher-easy:
+  n_timesteps: !!float 1500000
+  policy: 'MlpPolicy'
+  learning_rate: !!float 1e-3
+  buffer_size: 50000
+  exploration_fraction: 0.1
+  exploration_final_eps: 0.02
+  prioritized_replay: True
+  policy_kwargs: "dict(layers=[32, 32])"
 
 acrobot-swingup:
   n_timesteps: !!float 2500000
