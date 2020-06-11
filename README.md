@@ -4,7 +4,7 @@ This project uses and is modified from [stable-baselines](https://github.com/hil
 
 ## Installation
 ```bash
-git clone https://github.com/chinjui/macro-decision.git
+# git clone this repo or download codes.zip
 cd macro-decision
 pip install -r requirement.txt
 sudo apt-get update && sudo apt-get install cmake libopenmpi-dev python3-dev zlib1g-dev
