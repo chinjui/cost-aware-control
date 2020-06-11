@@ -15,4 +15,5 @@ pip install -e .
 ## Training example
 ```bash
 python rl-zoo/train_decision_net.py --env Swimmer-v3 --algo dqn --sub-hidden-sizes 8 256 --sub-policy-costs 1 245 --policy-cost-coef 1e-4
+python rl-zoo/train_decision_net.py --domain walker --task stand --algo dqn --sub-policy-costs 1 18.1 --policy-cost-coef 1e-2
 ```
