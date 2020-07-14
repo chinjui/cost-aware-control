@@ -1,4 +1,4 @@
-# Computational Cost-Aware Control Using Hierarchical Reinforcement Learning
+# Cost-aware Control
 
 This project uses and is modified from [stable-baselines](https://github.com/hill-a/stable-baselines/blob/master/docs/guide/rl_zoo.rst).
 
